@@ -1,0 +1,26 @@
+version: "3.1"
+
+networks:
+  express:
+  api:
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: database
+    restart: always
+    command: --auth
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-root}
+      MONGO_INITDB_DATABASE: admin
+      MONGO_SCHOOL_USERNAME: school
+      MONGO_SCHOOL_PASSWORD: ${MONGO_SCHOOL_PASSWORD:-schoolpassword}
+    ports:
+      - 27017:27017 
+    volumes:
+      - ./database/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
+      - ./database/data:/data/db
+    networks:
+      - express
+      - api

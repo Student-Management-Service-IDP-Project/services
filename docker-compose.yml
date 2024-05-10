@@ -2,13 +2,17 @@ version: "3.1"
 
 networks:
   express:
-  api:
+  adapter:
+  kong-net:
+  localprom:
+    driver: bridge
 
 services:
   mongodb:
     image: mongo:latest
-    container_name: database
+    hostname: mongodb
     restart: always
+    container_name: mongo
     command: --auth
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
@@ -23,4 +27,105 @@ services:
       - ./database/data:/data/db
     networks:
       - express
-      - api
+      - adapter
+  mongo-express:
+    image: mongo-express:latest
+    ports:
+      - 8081:8081
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_MONGODB_ADMINUSERNAME: root
+      ME_CONFIG_MONGODB_ADMINPASSWORD: ${MONGO_INITDB_ROOT_PASSWORD:-root}
+    networks:
+      - express
+  database-adapter:
+    image: irinanita/adapter-arm64:latest
+    container_name: adapter
+    depends_on:
+      - mongodb
+    links:
+      - mongodb
+    ports:
+      - 3000:3000
+    networks:
+      - adapter
+      - localprom
+  kong-db:
+    image: postgres:14-alpine
+    container_name: kong-db
+    networks:
+      - kong-net
+    environment:
+      POSTGRES_DB: kong
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "kong"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: on-failure
+  #######################################
+  # Kong database migration
+  #######################################
+  kong-migrations:
+    image: kong/kong-gateway:3.2.1.0
+    command: kong migrations bootstrap
+    container_name: kong-migrations
+    networks:
+      - kong-net
+      - localprom
+    depends_on:
+      kong-db:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_DATABASE: kong
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+    restart: on-failure
+  #######################################
+  # Kong: The API Gateway
+  #######################################
+  kong-ce:
+    image: kong/kong-gateway:3.2.1.0
+    container_name: kong
+    networks:
+      - kong-net
+      - localprom
+    restart: on-failure
+    depends_on:
+      kong-db:
+        condition: service_healthy
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_DATABASE: kong
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PROXY_LISTEN: 0.0.0.0:8000, 0.0.0.0:8443 ssl
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+
+     # KONG_SSL: "on"
+     # KONG_SSL_CERT: /certs/domain.crt
+     # KONG_SSL_CERT_KEY: /certs/domain.key
+     # KONG_LICENSE_DATA: 'Add License Key'
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://kong-ce:8001"]
+      interval: 5s
+      timeout: 2s
+      retries: 10
+
+    ports:
+      - "8000-8001:8000-8001/tcp"
+      - "8443:8443"
+      - "8444:8444"
+  prometheus:
+    image: prom/prometheus
+    volumes:
+      - "./prometheus.yml:/etc/prometheus/prometheus.yml"
+    networks:
+      - localprom
+    ports:
+      - 9090:9090

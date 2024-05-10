@@ -1,0 +1,9 @@
+_format_version: "2.1"
+
+services:
+  - name: database-adapter
+    url: http://database-adapter/
+    routes:
+      - name: add_student
+        paths: 
+          - /teacher/add_student

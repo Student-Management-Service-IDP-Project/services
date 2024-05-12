@@ -7,11 +7,6 @@ scrape_configs:
     static_configs:
       - targets: ['prometheus:9090']
 
-  - job_name: 'docker'
-    scrape_interval: 5s
-    static_configs:
-      - targets: ['host.docker.internal:9323']
-
   - job_name: 'node resources'
     static_configs:
       - targets: ['node_exporter:9100']
@@ -32,10 +27,8 @@ scrape_configs:
         - filesystem
         - xfs
 
-  - job_name: 'cadvisor'
-    static_configs:
-      - targets: ['cadvisor:8080']
-
   - job_name: 'kong'
+    # scrape_interval: 3s
+    # scrape_timeout: 1m
     static_configs:
       - targets: ['kong:8001']

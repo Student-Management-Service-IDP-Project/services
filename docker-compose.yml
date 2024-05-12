@@ -66,7 +66,7 @@ services:
     volumes:
       - ./kong:/usr/local/kong/declarative
     environment:
-      KONG_DATABASE: 'off'
+      KONG_DATABASE: "off"
       KONG_DECLARATIVE_CONFIG: /usr/local/kong/declarative/kong.yml
       KONG_PROXY_ACCESS_LOG: /dev/stdout
       KONG_ADMIN_ACCESS_LOG: /dev/stdout
@@ -82,11 +82,11 @@ services:
       - 8444:8444
     deploy:
       placement:
-        constraints: [ node.role == manager ]
+        constraints: [node.role == manager]
     networks:
       - kong-net
       - monitoring
-  # *************** Prometheus Monitoring *************** 
+  # *************** Prometheus Monitoring ***************
   prometheus:
     image: prom/prometheus
     volumes:
@@ -95,7 +95,21 @@ services:
       - 9090:9090
     networks:
       - monitoring
-  # *************** Node Exporter Monitoring *************** 
+      - agent_network
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3100:3000"
+    networks:
+      - monitoring
+      - agent_network
+    deploy:
+      mode: replicated
+      replicas: 1
+      # restart_policy:
+      #   condition: on-failure
+  # *************** Node Exporter Monitoring ***************
   node_exporter:
     image: prom/node-exporter
     deploy:
@@ -105,15 +119,15 @@ services:
       - /sys:/host/sys:ro
       - /:/rootfs:ro
     command:
-      - '--path.procfs=/host/proc'
-      - '--path.rootfs=/rootfs'
-      - '--path.sysfs=/host/sys'
-      - '--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)'
+      - "--path.procfs=/host/proc"
+      - "--path.rootfs=/rootfs"
+      - "--path.sysfs=/host/sys"
+      - "--collector.filesystem.mount-points-exclude=^/(sys|proc|dev|host|etc)($$|/)"
     ports:
       - 9100:9100
     networks:
       - monitoring
-  # *************** Portainer Agent *************** 
+  # *************** Portainer Agent ***************
   agent:
     image: portainer/agent:2.11.1
     volumes:
@@ -124,8 +138,8 @@ services:
     deploy:
       mode: global
       placement:
-        constraints: [ node.platform.os == linux ]
-  # *************** Portainer *************** 
+        constraints: [node.platform.os == linux]
+  # *************** Portainer ***************
   portainer:
     image: portainer/portainer-ce:2.11.1
     command: -H tcp://tasks.agent:9001 --tlsskipverify
@@ -141,7 +155,7 @@ services:
       mode: replicated
       replicas: 1
       placement:
-        constraints: [ node.role == manager ]
+        constraints: [node.role == manager]
 
 volumes:
   portainer_data:

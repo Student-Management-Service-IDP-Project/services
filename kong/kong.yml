@@ -2,12 +2,24 @@ _format_version: "2.1"
 
 services:
   - name: database-adapter
-    url: http://adapter:3000
+    url: http://schoolstack_database-adapter:3000
     routes:
       - name: school
         paths: 
           - /school
-        strip_path: false
+
+  - name: authorization
+    url: http://schoolstack_auth:5001
+    routes:
+      - name: auth
+        paths: 
+          - /auth
+  - name: echo
+    url: http://schoolstack_health:5050
+    routes:
+      - name: echo
+        paths: 
+          - /
 
 plugins:
 - name: cors

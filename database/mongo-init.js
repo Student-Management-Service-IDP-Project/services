@@ -17,3 +17,4 @@ db.createCollection('courses');
 db.createCollection('grades');
 db.createCollection('materials');
 db.createCollection('students');
+db.createCollection('users');

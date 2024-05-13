@@ -9,6 +9,8 @@ networks:
   monitoring:
   agent_network:
     driver: overlay
+  auth:
+  echo:
 
 services:
   # *************** Mongo Database ***************
@@ -26,15 +28,16 @@ services:
       - 27017:27017
     volumes:
       - ./database/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js:ro
-      - mongo-vol:/data/db
+      - ./database/data:/data/db
     networks:
       - express
       - adapter
+      - auth
     deploy:
       mode: replicated
       replicas: 1
-      # restart_policy:
-      #   condition: on-failure
+      restart_policy:
+        condition: on-failure
   # *************** Mongo Express ***************
   mongo-express:
     image: mongo-express:latest
@@ -49,7 +52,7 @@ services:
       - express
   # *************** IO Adapter *****************
   database-adapter:
-    image: irinanita/adapter-amd64:latest
+    image: irinanita/adapter-arm64:latest
     hostname: adapter
     depends_on:
       - mongodb
@@ -57,6 +60,24 @@ services:
       - mongodb
     networks:
       - adapter
+      - kong-net
+  # *************** Authorization *****************
+  auth:
+    image: irinanita/auth-py-arm64:latest
+    hostname: auth
+    depends_on:
+      - mongodb
+    links:
+      - mongodb
+    networks:
+      - auth
+      - kong-net
+  # *************** Healthcheck *************
+  health:
+    image: irinanita/echo-arm64:latest
+    hostname: echo
+    networks:
+      - echo
       - kong-net
   # *************** Kong API Gateway ***************
   kong:
@@ -72,12 +93,10 @@ services:
       KONG_PROXY_ERROR_LOG: /dev/stderr
       KONG_ADMIN_ERROR_LOG: /dev/stderr
       KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
-      # KONG_STATUS_LISTEN: 0.0.0.0:8100 ssl
     ports:
       - 8084:8000
       - 443:8443
       - 8001:8001
-      # - 8100:8100
       - 8444:8444
     deploy:
       placement:
@@ -94,6 +113,10 @@ services:
       - 9090:9090
     networks:
       - monitoring
+      - agent_network
+    deploy:
+      mode: replicated
+      replicas: 1
   # *************** Node Exporter Monitoring *************** 
   node_exporter:
     image: prom/node-exporter
@@ -141,7 +164,19 @@ services:
       replicas: 1
       placement:
         constraints: [ node.role == manager ]
+  grafana:
+    image: grafana/grafana:latest
+    ports: 
+      - "3100:3000"
+    networks:
+      - monitoring
+      - agent_network
+    deploy:
+      mode: replicated
+      replicas: 1
+    volumes:
+      - grafana-vol:/var/lib/grafana
 
 volumes:
-  portainer_data:
-  mongo-vol: {}
+  portainer_data: {}
+  grafana-vol: {}
